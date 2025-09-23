@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 
 function Register() {
   const [name, setName] = useState("")
@@ -7,6 +7,7 @@ function Register() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [message, setMessage] = useState("")
+  const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -24,6 +25,7 @@ function Register() {
       })
       if (res.ok) {
         setMessage("✅ Account created successfully!")
+        navigate("/login")
       } else {
         const err = await res.text()
         setMessage("❌ Registration failed: " + err)
