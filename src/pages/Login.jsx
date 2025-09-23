@@ -1,13 +1,15 @@
 import { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 
 function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [message, setMessage] = useState("")
+  const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault()   // ✅ 阻止页面刷新
+
     try {
       const res = await fetch("http://localhost:8080/api/users/login", {
         method: "POST",
@@ -16,10 +18,18 @@ function Login() {
         },
         body: JSON.stringify({ email, password }),
       })
+
       if (res.ok) {
         const data = await res.json()
         setMessage("✅ Login successful!")
-        localStorage.setItem("token", data.token || "")
+
+        if (data.id) {
+          localStorage.setItem("userId", data.id)
+          localStorage.setItem("userEmail", data.email) // 存储 email 以便显示
+        }
+
+        // ✅ 强制跳转到 /contacts
+        navigate("/contacts", { replace: true })
       } else {
         const err = await res.text()
         setMessage("❌ Login failed: " + err)
@@ -49,6 +59,7 @@ function Login() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email address"
               className="mt-1 block w-full rounded-md border border-gray-300 bg-white placeholder-gray-400 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              required
             />
           </div>
 
@@ -60,6 +71,7 @@ function Login() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
               className="mt-1 block w-full rounded-md border border-gray-300 bg-white placeholder-gray-400 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              required
             />
           </div>
 
