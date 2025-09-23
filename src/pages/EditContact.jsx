@@ -9,31 +9,64 @@ function EditContact() {
   const [name, setName] = useState(contact?.name || "")
   const [email, setEmail] = useState(contact?.email || "")
   const [phone, setPhone] = useState(contact?.phone || "")
+  const [errors, setErrors] = useState({})
   const [showConfirm, setShowConfirm] = useState(false)
 
   const handleSave = async () => {
     const userId = localStorage.getItem("userId")
+
+    // 前端只做必填检查
+    const newErrors = {}
+    if (!name.trim()) newErrors.name = "Name is required."
+    if (!email.trim()) newErrors.email = "Email is required."
+    if (!phone.trim()) newErrors.phone = "Phone is required."
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      return
+    }
+
     try {
-      await fetch(`http://localhost:8080/api/contacts/${contact.id}?userId=${userId}`, {
+      const res = await fetch(`http://localhost:8080/api/contacts/${contact.id}?userId=${userId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone })
+        body: JSON.stringify({ name, email, phone }),
       })
-      navigate("/contacts")
+
+      if (res.ok) {
+        navigate("/contacts")
+      } else {
+        const data = await res.json().catch(() => null)
+        const errText = !data ? await res.text() : null
+
+        if (data && data.errors) {
+          setErrors(data.errors)
+        } else if (data && data.message) {
+          setErrors({ global: data.message })
+        } else if (errText) {
+          setErrors({ global: errText })
+        } else {
+          setErrors({ global: "Failed to update contact." })
+        }
+      }
     } catch (err) {
-      console.error("Update error:", err)
+      setErrors({ global: "Error: " + err.message })
     }
   }
 
   const handleDelete = async () => {
     const userId = localStorage.getItem("userId")
     try {
-      await fetch(`http://localhost:8080/api/contacts/${contact.id}?userId=${userId}`, {
-        method: "DELETE"
+      const res = await fetch(`http://localhost:8080/api/contacts/${contact.id}?userId=${userId}`, {
+        method: "DELETE",
       })
-      navigate("/contacts")
+      if (res.ok) {
+        navigate("/contacts")
+      } else {
+        const text = await res.text()
+        setErrors({ global: text || "Failed to delete contact." })
+      }
     } catch (err) {
-      console.error("Delete error:", err)
+      setErrors({ global: "Delete error: " + err.message })
     }
   }
 
@@ -42,27 +75,50 @@ function EditContact() {
       <h2 className="text-xl font-bold mb-4">Edit Contact</h2>
 
       <div className="space-y-4">
-        <input
-          type="text"
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full border rounded p-2"
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full border rounded p-2"
-        />
-        <input
-          type="text"
-          placeholder="Phone"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          className="w-full border rounded p-2"
-        />
+        {/* Name */}
+        <div>
+          <input
+            type="text"
+            placeholder="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={`w-full border rounded p-2 ${
+              errors.name ? "border-red-500" : "border-gray-300"
+            }`}
+          />
+          {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+        </div>
+
+        {/* Email */}
+        <div>
+          <input
+            type="text"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={`w-full border rounded p-2 ${
+              errors.email ? "border-red-500" : "border-gray-300"
+            }`}
+          />
+          {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+        </div>
+
+        {/* Phone */}
+        <div>
+          <input
+            type="text"
+            placeholder="Phone"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className={`w-full border rounded p-2 ${
+              errors.phone ? "border-red-500" : "border-gray-300"
+            }`}
+          />
+          {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+        </div>
+
+        {/* 全局错误 */}
+        {errors.global && <p className="text-red-500 text-sm mt-2">{errors.global}</p>}
       </div>
 
       <div className="flex space-x-2 mt-6">

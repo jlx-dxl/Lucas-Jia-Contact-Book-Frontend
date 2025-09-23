@@ -10,40 +10,47 @@ function AddContact() {
 
   const userId = localStorage.getItem("userId")
 
-  const validate = () => {
-    const newErrors = {}
-    if (!name.trim()) newErrors.name = "Please enter a name."
-    if (!email.trim()) {
-      newErrors.email = "Please enter an email."
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = "Hmm, that doesn’t look like a valid email address."
-    }
-    if (!phone.trim()) {
-      newErrors.phone = "Please enter a phone number."
-    } else if (!/^\+?\d{1,4}[\s-]?\d{3}[\s-]?\d{3,4}[\s-]?\d{3,4}$/.test(phone)) {
-      newErrors.phone = "Phone numbers should look like (555) 123-4567."
-    }
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!validate()) return
+
+    // 前端只做必填检查（避免空字段直接发请求）
+    const newErrors = {}
+    if (!name.trim()) newErrors.name = "Name is required."
+    if (!email.trim()) newErrors.email = "Email is required."
+    if (!phone.trim()) newErrors.phone = "Phone is required."
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      return
+    }
 
     try {
       const res = await fetch(`http://localhost:8080/api/contacts?userId=${userId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone })
+        body: JSON.stringify({ name, email, phone }),
       })
+
       if (res.ok) {
         navigate("/contacts")
       } else {
-        console.error("Failed to create contact")
+        // 尝试解析 JSON
+        const data = await res.json().catch(() => null)
+        const errText = !data ? await res.text() : null
+
+        if (data && data.errors) {
+          // 假设后端返回 { errors: { name: "...", email: "...", phone: "..." } }
+          setErrors(data.errors)
+        } else if (data && data.message) {
+          // 单一 message
+          setErrors({ global: data.message })
+        } else if (errText) {
+          setErrors({ global: errText })
+        } else {
+          setErrors({ global: "Failed to create contact." })
+        }
       }
     } catch (err) {
-      console.error("Error:", err)
+      setErrors({ global: "Error: " + err.message })
     }
   }
 
@@ -121,6 +128,9 @@ function AddContact() {
             {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
           </div>
 
+          {/* 全局错误（如后端返回 email 已存在） */}
+          {errors.global && <p className="text-red-500 text-sm mt-2">{errors.global}</p>}
+
           {/* 按钮 */}
           <div className="flex justify-end space-x-3 mt-6">
             <button
@@ -132,7 +142,6 @@ function AddContact() {
             </button>
             <button
               type="submit"
-              disabled={!name || !email || !phone}
               className={`px-4 py-2 rounded-md text-white ${
                 !name || !email || !phone
                   ? "bg-gray-400 cursor-not-allowed"

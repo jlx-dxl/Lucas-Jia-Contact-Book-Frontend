@@ -6,6 +6,8 @@ function Contacts() {
   const [selected, setSelected] = useState(new Set())
   const [search, setSearch] = useState("")
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [errors, setErrors] = useState({})
+  const [showConfirm, setShowConfirm] = useState(false)
   const navigate = useNavigate()
 
   // 加载联系人
@@ -86,6 +88,28 @@ function Contacts() {
     navigate("/login")
   }
 
+  // 删除联系人
+  const handleDelete = async () => {
+    const userId = localStorage.getItem("userId")
+    try {
+      for (const id of selected) {
+        const res = await fetch(`http://localhost:8080/api/contacts/${id}?userId=${userId}`, {
+          method: "DELETE",
+        })
+        if (!res.ok) {
+          const text = await res.text()
+          setErrors({ global: text || "Failed to delete contact." })
+          return
+        }
+      }
+      setSelected(new Set())
+      fetchContacts(userId, search) // 刷新列表
+      setShowConfirm(false)
+    } catch (err) {
+      setErrors({ global: "Delete error: " + err.message })
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 顶部导航 */}
@@ -160,7 +184,10 @@ function Contacts() {
               >
                 Edit
               </button>
-              <button className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600">
+              <button
+                onClick={() => setShowConfirm(true)}   // 这里加上点击事件
+                className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600"
+              >
                 Delete
               </button>
             </div>
@@ -208,6 +235,37 @@ function Contacts() {
             </tbody>
           </table>
         </div>
+
+        {/* 错误提示 */}
+        {errors.global && (
+          <p className="text-red-500 text-sm mt-2">{errors.global}</p>
+        )}
+
+        {/* 删除确认框 */}
+        {showConfirm && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30">
+            <div className="bg-white rounded-md shadow p-6 w-96">
+              <h2 className="text-lg font-semibold mb-4">Confirm Delete</h2>
+              <p className="text-sm text-gray-600 mb-6">
+                Are you sure you want to delete {selected.size} contact(s)?
+              </p>
+              <div className="flex justify-end space-x-2">
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )
